@@ -7,6 +7,7 @@ import javax.swing.table.DefaultTableModel;
 import Modelo.Producto;
 import Modelo.ProductoDAO;
 import java.awt.Dimension;
+import java.awt.HeadlessException;
 import java.awt.event.MouseEvent;
 import java.util.List;
 import javax.swing.JOptionPane;
@@ -15,6 +16,7 @@ import vista.Interfaz;
 
 public class ControlProducto implements ActionListener {
 
+    // variables para almacenar datos del producto
     private int id;
     private String nombre;
     private String descripcion;
@@ -33,6 +35,7 @@ public class ControlProducto implements ActionListener {
         ListarTabla();
     }
 
+    // agrega eventos a los botones y la tabla
     private void AgregarEventos() {
         vista.getBtnPublicar().addActionListener(this);
         vista.getBtnActualizar().addActionListener(this);
@@ -47,8 +50,9 @@ public class ControlProducto implements ActionListener {
         });
     }
 
+    // lista los productos en la tabla de la interfaz
     private void ListarTabla() {
-        String[] titulos = new String[]{"ID", "Nombre", "Descripción", "Categoría", "Precio"};
+        String[] titulos = new String[]{"ID", "Nombre", "Descripcion", "Categoría", "Precio"};
         modeloDeTabla = new DefaultTableModel(titulos, 0);
         List<Producto> lista = productoDAO.listar();
         for (Producto producto : lista) {
@@ -64,6 +68,7 @@ public class ControlProducto implements ActionListener {
         vista.getTable1().setPreferredSize(new Dimension(350, modeloDeTabla.getRowCount() * 16));
     }
 
+    // llena los inputs al hacer clic en una fila de la tabla
     private void LlenarCampos(MouseEvent e) {
         JTable target = (JTable) e.getSource();
         id = Integer.parseInt(vista.getTable1().getModel().getValueAt(target.getSelectedRow(), 0).toString());
@@ -73,6 +78,7 @@ public class ControlProducto implements ActionListener {
         vista.getTextPrecio().setText(vista.getTable1().getModel().getValueAt(target.getSelectedRow(), 4).toString());
     }
 
+    // valida que todos los campos estén llenos
     private boolean validarDatos() {
         if (vista.getTextnombre().getText().trim().isEmpty()
                 || vista.getTextDescripcion().getText().trim().isEmpty()
@@ -84,19 +90,30 @@ public class ControlProducto implements ActionListener {
         return true;
     }
 
+    // carga los datos ingresados en los inputs
     private boolean cargarDatos() {
         try {
             nombre = vista.getTextnombre().getText().trim();
             descripcion = vista.getTextDescripcion().getText().trim();
             categoria = vista.getTextCategoria().getText().trim();
-            precio = Double.parseDouble(vista.getTextPrecio().getText().trim());
+
+            String precioTexto = vista.getTextPrecio().getText().trim();
+
+            if (precioTexto.isEmpty()) {
+                JOptionPane.showMessageDialog(null, "El campo Precio no puede estar vacío.", "Error", JOptionPane.ERROR_MESSAGE);
+                return false;
+            }
+
+            precio = Double.parseDouble(precioTexto);
             return true;
         } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(null, "El campo Precio debe ser numérico.", "Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(null, "El campo Precio debe ser un número válido.", "Error", JOptionPane.ERROR_MESSAGE);
+            System.out.println("Error al cargar los datos: " + e.getMessage());
             return false;
         }
     }
 
+    // limpia los campos de la interfaz
     private void limpiarCampos() {
         vista.getTextnombre().setText("");
         vista.getTextDescripcion().setText("");
@@ -109,11 +126,72 @@ public class ControlProducto implements ActionListener {
         precio = 0.0;
     }
 
+    // agrega un producto a la base de datos
     private void agregarProducto() {
-        if (validarDatos() && cargarDatos()) {
-            Producto producto = new Producto(nombre, descripcion, categoria, precio);
-            productoDAO.Agregar(producto);
-            JOptionPane.showMessageDialog(null, "El producto se publicó correctamente.");
+        try {
+            if (!validarDatos()) {
+                return;
+            }
+
+            if (cargarDatos()) {
+                Producto producto = new Producto(nombre, descripcion, categoria, precio);
+
+                productoDAO.Agregar(producto);
+
+                JOptionPane.showMessageDialog(null, "El registro se agregó exitosamente");
+
+                limpiarCampos();
+                ListarTabla();
+            }
+        } catch (Exception e) {
+            System.out.println("Error al agregar: " + e.getMessage());
+            JOptionPane.showMessageDialog(null, "Hubo un error al guardar el registro", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    // actualiza un producto que existe en la base de datos
+    private void actualizarProducto() {
+        try {
+            if (validarDatos()) {
+                if (cargarDatos()) {
+                    System.out.println("Actualizando registro:");
+                    System.out.println("ID: " + id);
+                    System.out.println("Nombre: " + nombre);
+                    System.out.println("Descripcion: " + descripcion);
+                    System.out.println("Categoría: " + categoria);
+                    System.out.println("Precio: " + precio);
+
+                    Producto producto = new Producto(id, nombre, descripcion, categoria, precio);
+
+                    if (id == 0) {
+                        JOptionPane.showMessageDialog(null, "Debe seleccionar un producto para actualizar.", "Error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    productoDAO.Actualizar(producto);
+
+                    JOptionPane.showMessageDialog(null, "Artículo actualizado con éxito.");
+                    limpiarCampos();
+                }
+            }
+        } catch (HeadlessException e) {
+            System.out.println("Error al actualizar: " + e.getMessage());
+        } finally {
+            ListarTabla();
+        }
+    }
+
+    // borra un producto de la base de datos
+    private void borrarProducto() {
+        if (id == 0) {
+            JOptionPane.showMessageDialog(null, "Seleccione un producto para eliminar.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int confirmacion = JOptionPane.showConfirmDialog(null, "¿Seguro que quieres eliminar este producto?", "Confirmar eliminación", JOptionPane.YES_NO_OPTION);
+
+        if (confirmacion == JOptionPane.YES_OPTION) {
+            productoDAO.Eliminar(id);
+            JOptionPane.showMessageDialog(null, "Producto eliminado exitosamente.");
             limpiarCampos();
             ListarTabla();
         }
@@ -123,6 +201,12 @@ public class ControlProducto implements ActionListener {
     public void actionPerformed(ActionEvent ae) {
         if (ae.getSource() == vista.getBtnPublicar()) {
             agregarProducto();
+        } else if (ae.getSource() == vista.getBtnActualizar()) {
+            actualizarProducto();
+        } else if (ae.getSource() == vista.getBtnBorrar()) {
+            borrarProducto();
+        } else if (ae.getSource() == vista.getBtnLimpiar()) {
+            limpiarCampos();
         }
     }
 }

@@ -1,4 +1,3 @@
-
 package Modelo;
 
 public class Producto {
@@ -12,8 +11,7 @@ public class Producto {
     public Producto() {
     }
 
-    //Constructor para agregar
-
+    //constructor para agregar
     public Producto(String nombre, String descripcion, String categoria, Double precio) {
         this.nombre = nombre;
         this.descripcion = descripcion;
@@ -22,7 +20,7 @@ public class Producto {
     }
     
 
-    //Constructor para actualizar
+    //constructor para actualizar
     public Producto(int id, String nombre, String descripcion, String categoria, Double precio) {
         this.id = id;
         this.nombre = nombre;
